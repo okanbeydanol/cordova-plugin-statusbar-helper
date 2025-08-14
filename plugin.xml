@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<plugin
+  xmlns="http://apache.org/cordova/ns/plugins/1.0"
+  xmlns:android="http://schemas.android.com/apk/res/android"
+  id="cordova-plugin-statusbar-helper"
+  version="1.0.0"
+>
+  <name>StatusBar</name>
+  <description>Cordova StatusBar Plugin</description>
+  <repo>https://github.com/okanbeydanol/cordova-plugin-statusbar-helper.git</repo>
+  <issue>https://github.com/okanbeydanol/cordova-plugin-statusbar-helper/issues</issue>
+  <license>Apache 2.0</license>
+  <keywords>cordova,statusbar</keywords>
+  <engines>
+    <engine name="cordova" version="&gt;=3.0.0" />
+    <engine name="cordova-android" version="&gt;=10.0.0" />
+    <engine name="cordova-ios" version="&gt;=6.0.0" />
+  </engines>
+  <js-module src="www/statusBar.js" name="statusBar">
+    <clobbers target="cordova.plugins.StatusBar" />
+  </js-module>
+  <platform name="android">
+    <source-file src="src/android/StatusBar.java" target-dir="src/com/okanbeydanol/statusBar" />
+    <config-file target="res/xml/config.xml" parent="/*">
+      <feature name="StatusBar">
+        <param name="android-package" value="com.okanbeydanol.statusBar.StatusBar" />
+        <param name="onload" value="true" />
+      </feature>
+      <preference name="StatusBarOverlaysWebView" value="true" />
+    </config-file>
+  </platform>
+  <platform name="ios">
+    <config-file target="config.xml" parent="/*">
+      <feature name="StatusBar">
+        <param name="ios-package" value="CDVStatusBar" />
+        <param name="onload" value="true" />
+      </feature>
+      <preference name="StatusBarOverlaysWebView" value="true" />
+      <preference name="StatusBarStyle" value="lightcontent" />
+    </config-file>
+    <header-file src="src/ios/CDVStatusBar.h" />
+    <source-file src="src/ios/CDVStatusBar.m" />
+  </platform>
+</plugin>

@@ -1,0 +1,40 @@
+{
+  "name": "cordova-plugin-statusbar-helper",
+  "version": "1.0.0",
+  "description": "Cordova Status Bar Plugin",
+  "cordova": {
+    "id": "cordova-plugin-statusbar-helper",
+    "platforms": [
+      "ios",
+      "android"
+    ]
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/okanbeydanol/cordova-plugin-statusbar-helper.git"
+  },
+  "keywords": [
+    "cordova",
+    "call",
+    "dialer",
+    "phonegap",
+    "ecosystem:cordova",
+    "cordova-ios",
+    "cordova-android"
+  ],
+  "engines": {
+    "cordova-ios": ">=3.6.0",
+    "cordova-android": ">=3.0.0"
+  },
+  "author": "Okan Beydanol <okan.beydanol@gmail.com>",
+  "license": "MIT",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "types": "www/StatusBar.d.ts",
+  "main": "www/StatusBar.js",
+  "bugs": {
+    "url": "https://github.com/okanbeydanol/cordova-plugin-statusbar-helper/issues"
+  },
+  "homepage": "https://github.com/okanbeydanol/cordova-plugin-statusbar-helper#readme"
+}
