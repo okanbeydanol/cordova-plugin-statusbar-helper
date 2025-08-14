@@ -33,6 +33,12 @@ StatusBar.backgroundColorByName('blue');
 // Set navigation bar color (Android only)
 StatusBar.navigationBackgroundColorByHexString('#00FF00');
 
+// Set navigation bar buttons and status bar icons content color to black
+StatusBar.styleDefault();
+
+// Set navigation bar buttons and status bar icons content color to white
+StatusBar.styleLightContent();
+
 // Hide the status bar
 StatusBar.hide();
 
@@ -64,6 +70,12 @@ StatusBar.backgroundColorByName('blue');
 
 // Set navigation bar color (Android only)
 StatusBar.navigationBackgroundColorByHexString('#00FF00');
+
+// Set navigation bar buttons and status bar icons content color to black
+StatusBar.styleDefault();
+
+// Set navigation bar buttons and status bar icons content color to white
+StatusBar.styleLightContent();
 
 // Hide the status bar
 StatusBar.hide();
