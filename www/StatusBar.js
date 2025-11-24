@@ -233,6 +233,18 @@ StatusBar.prototype.show = function () {
     StatusBar.isVisible = true;
 };
 
+StatusBar.prototype.getSafeAreaInsets = function (callback) {
+    cordova.exec(function (insets) {
+        if (callback) callback(insets);
+    }, null, 'StatusBar', 'getSafeAreaInsets', []);
+};
+
+StatusBar.prototype.subscribeSafeAreaInsets = function (callback) {
+    cordova.exec(function (insets) {
+        if (callback) callback(insets);
+    }, null, 'StatusBar', 'subscribeSafeAreaInsets', []);
+};
+
 module.exports = new StatusBar();
 module.exports.StatusBar = module.exports;
 

@@ -10,6 +10,8 @@ declare namespace CordovaPlugins {
         show(): void;
         styleDefault(): void;
         styleLightContent(): void;
+        getSafeAreaInsets(callback: (insets: { top: number; left: number; bottom: number; right: number }) => void): void;
+        subscribeSafeAreaInsets(callback: (insets: { top: number; left: number; bottom: number; right: number }) => void): void;
     }
 }
 

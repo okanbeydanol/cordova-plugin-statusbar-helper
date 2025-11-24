@@ -14,4 +14,7 @@
 
 - (void)_ready:(CDVInvokedUrlCommand*)command;
 
+- (void)getSafeAreaInsets:(CDVInvokedUrlCommand*)command;
+- (void)subscribeSafeAreaInsets:(CDVInvokedUrlCommand*)command;
+
 @end
