@@ -166,8 +166,7 @@ public class StatusBar extends CordovaPlugin {
     private void setStatusBarColor(String hex) {
         Integer color = parseColorSafe(hex);
         if (color == null) return;
-
-        window.setStatusBarColor(fullScreenAppEnabled ? Color.TRANSPARENT : color);
+        window.setStatusBarColor(fullScreenAppEnabled || isEdgeToEdgeSupported() ? Color.TRANSPARENT : color);
         if (isEdgeToEdgeSupported()) {
             rootView.setBackgroundColor(fullScreenAppEnabled ? Color.TRANSPARENT : color);
         }
@@ -177,15 +176,13 @@ public class StatusBar extends CordovaPlugin {
     private void setNavigationBarColor(String hex) {
         Integer color = parseColorSafe(hex);
         if (color == null) return;
-        window.setNavigationBarColor(fullScreenAppEnabled ? Color.TRANSPARENT : color);
-
+        window.setNavigationBarColor(fullScreenAppEnabled || isEdgeToEdgeSupported() ? Color.TRANSPARENT : color);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             window.setNavigationBarDividerColor(Color.TRANSPARENT);
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             window.setNavigationBarContrastEnforced(false);
         }
-
         setBarStyle(isLightTextNeeded(color) ? STYLE_LIGHT_CONTENT : STYLE_DEFAULT, false);
     }
 
@@ -244,6 +241,7 @@ public class StatusBar extends CordovaPlugin {
 
         decorView.setSystemUiVisibility(visibility);
         window.setStatusBarColor(statusBarColor);
+        window.setNavigationBarColor(statusBarColor);
     }
 
     private void showSystemBars() {
@@ -285,7 +283,7 @@ public class StatusBar extends CordovaPlugin {
                 boolean keyboardVisible = insets.isVisible(WindowInsetsCompat.Type.ime());
 
                 int top = systemBars.top;
-                int bottom = keyboardVisible ? Math.max(systemBars.bottom, imeInsets.bottom)  : systemBars.bottom;
+                int bottom = keyboardVisible ? Math.max(systemBars.bottom, imeInsets.bottom) : systemBars.bottom;
                 int left = systemBars.left;
                 int right = systemBars.right;
 
@@ -306,7 +304,7 @@ public class StatusBar extends CordovaPlugin {
                 int right = systemBarsListener.right;
 
                 v.setPadding(left, top, right, bottom);
-                return WindowInsetsCompat.CONSUMED;
+                return windowInsets;
             });
 
         } else {
