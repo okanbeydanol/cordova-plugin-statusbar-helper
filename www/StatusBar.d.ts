@@ -6,8 +6,8 @@ declare namespace CordovaPlugins {
         backgroundColorByName(colorname: string): void;
         backgroundColorByHexString(hexString: string): void;
         navigationBackgroundColorByHexString(hexString: string): void;
-        hide(): void;
-        show(): void;
+        hide(keepInsets?: boolean): void;
+        show(keepInsets?: boolean): void;
         styleDefault(): void;
         styleLightContent(): void;
         getSafeAreaInsets(callback: (insets: { top: number; left: number; bottom: number; right: number }) => void): void;

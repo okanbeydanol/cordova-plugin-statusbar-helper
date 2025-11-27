@@ -223,13 +223,13 @@ StatusBar.prototype.navigationBackgroundColorByHexString = function (hexString) 
     cordova.exec(null, null, 'StatusBar', 'navigationBackgroundColorByHexString', [hexString]);
 };
 
-StatusBar.prototype.hide = function () {
-    cordova.exec(null, null, 'StatusBar', 'hide', []);
+StatusBar.prototype.hide = function (keepInsets = false) {
+    cordova.exec(null, null, 'StatusBar', 'hide', [keepInsets]);
     StatusBar.isVisible = false;
 };
 
-StatusBar.prototype.show = function () {
-    cordova.exec(null, null, 'StatusBar', 'show', []);
+StatusBar.prototype.show = function (keepInsets = false) {
+    cordova.exec(null, null, 'StatusBar', 'show', [keepInsets]);
     StatusBar.isVisible = true;
 };
 

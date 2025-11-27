@@ -45,6 +45,8 @@ static const void *kStatusBarStyle = &kStatusBarStyle;
 @property (nonatomic, assign) BOOL statusBarVisible;
 @property (nonatomic, strong) NSString* safeAreaCallbackId;
 @property (nonatomic, strong) UIScrollView *fakeScrollView;
+@property (nonatomic, assign, readwrite) BOOL keepInsets;
+@property (nonatomic, assign) CGFloat storedSafeAreaTop;
 
 - (void)updateIsVisible:(BOOL)visible;
 @end
@@ -52,6 +54,49 @@ static const void *kStatusBarStyle = &kStatusBarStyle;
 @implementation CDVStatusBar
 
 #pragma mark - Helpers
+
++ (CGRect)statusBarFrameForViewController:(UIViewController*)vc {
+    CGRect statusBarFrame = CGRectZero;
+    if (@available(iOS 13.0, *)) {
+        UIWindow *window = vc.view.window;
+        if (!window) {
+            // fallback to first connected window
+            window = [UIApplication sharedApplication].windows.firstObject;
+        }
+        if (window && window.windowScene && window.windowScene.statusBarManager) {
+            statusBarFrame = window.windowScene.statusBarManager.statusBarFrame;
+        } else {
+            CGFloat topInset = vc.view.safeAreaInsets.top;
+            statusBarFrame = CGRectMake(0, 0, CGRectGetWidth(vc.view.bounds), topInset);
+        }
+    } else {
+        statusBarFrame = [UIApplication sharedApplication].statusBarFrame;
+    }
+    return statusBarFrame;
+}
+
++ (UIStatusBarManager *)currentStatusBarManagerForViewController:(UIViewController *)vc {
+    if (@available(iOS 13.0, *)) {
+        UIWindow *window = vc.view.window;
+        if (!window) {
+            // fallback to first connected window
+            window = [UIApplication sharedApplication].windows.firstObject;
+        }
+        if (window && window.windowScene) {
+            return window.windowScene.statusBarManager;
+        } else {
+            return nil; // manager not available yet
+        }
+    } else {
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+        // Before iOS 13 there is no UIStatusBarManager, so return nil
+        return nil;
+#pragma clang diagnostic pop
+    }
+}
+
+
 
 - (UIColor*)colorFromHex:(NSString*)hexString {
     if (!hexString) return nil;
@@ -96,10 +141,17 @@ static const void *kStatusBarStyle = &kStatusBarStyle;
 
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(statusBarDidChangeFrame:) name:UIApplicationDidChangeStatusBarFrameNotification object:nil];
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(cordovaViewWillAppear:) name:@"CDVViewWillAppearNotification" object:nil];
-
+    CGRect sbFrame = [CDVStatusBar statusBarFrameForViewController:self.viewController];
+    CGFloat statusBarHeight = sbFrame.size.height;
+    if (statusBarHeight > 0) {
+        self.storedSafeAreaTop = statusBarHeight;
+    }
+   
     // default: do NOT overlay; push content below status bar
     self.statusBarOverlaysWebView = NO;
-    self.statusBarVisible = ![UIApplication sharedApplication].isStatusBarHidden;
+    UIStatusBarManager *statusBarManager = [CDVStatusBar currentStatusBarManagerForViewController:self.viewController];
+
+    self.statusBarVisible = !statusBarManager.isStatusBarHidden;
 
     [self initializeStatusBarBackgroundView];
 
@@ -213,8 +265,9 @@ static const void *kStatusBarStyle = &kStatusBarStyle;
     if (command.callbackId) {
         self.eventsCallbackId = command.callbackId;
     }
+    UIStatusBarManager *statusBarManager = [CDVStatusBar currentStatusBarManagerForViewController:self.viewController];
     // reply current visibility and keep callback so JS can listen later
-    CDVPluginResult* res = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsBool:![UIApplication sharedApplication].statusBarHidden];
+    CDVPluginResult* res = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsBool:!statusBarManager.statusBarHidden];
     [res setKeepCallbackAsBool:YES];
     [self.commandDelegate sendPluginResult:res callbackId:command.callbackId];
 }
@@ -291,16 +344,7 @@ static const void *kStatusBarStyle = &kStatusBarStyle;
 }
 
 - (void)getSafeAreaInsets:(CDVInvokedUrlCommand*)command {
-    UIEdgeInsets insets = UIEdgeInsetsZero;
-
-    // Prefer view.safeAreaInsets on iOS 11+
-    if (@available(iOS 11.0, *)) {
-        insets = self.viewController.view.safeAreaInsets;
-    } else {
-        // fallback (older iOS)
-        CGFloat top = [UIApplication sharedApplication].statusBarFrame.size.height;
-        insets = UIEdgeInsetsMake(top, 0, 0, 0);
-    }
+    UIEdgeInsets insets = self.viewController.view.safeAreaInsets;
 
     NSDictionary *result = @{
         @"top": @(insets.top),
@@ -333,31 +377,41 @@ static const void *kStatusBarStyle = &kStatusBarStyle;
     self.safeAreaCallbackId = command.callbackId;
     dispatch_async(dispatch_get_main_queue(), ^{
         UIViewController* vc = weakSelf.viewController;
-        if (@available(iOS 11.0, *)) {
-            // Observe safeAreaInsets changes
-            [vc.view addObserver:weakSelf
-                      forKeyPath:@"safeAreaInsets"
-                         options:NSKeyValueObservingOptionNew
-                         context:(__bridge void * _Nullable)(command.callbackId)];
-        }
+        [vc.view addObserver:weakSelf
+                  forKeyPath:@"safeAreaInsets"
+                     options:NSKeyValueObservingOptionNew
+                     context:(__bridge void * _Nullable)(command.callbackId)];
     });
 }
 
 - (void)hide:(CDVInvokedUrlCommand*)command {
     self.statusBarVisible = NO;
-    UIApplication* app = [UIApplication sharedApplication];
-    if (!app.isStatusBarHidden) {
+    BOOL keepInsets = NO;
+    id arg = [command argumentAtIndex:0];
+    if ([arg isKindOfClass:[NSNumber class]]) keepInsets = [(NSNumber*)arg boolValue];
+    else if ([arg isKindOfClass:[NSString class]]) keepInsets = [(NSString*)arg boolValue];
+    self.keepInsets = keepInsets;
+    UIStatusBarManager *statusBarManager = [CDVStatusBar currentStatusBarManagerForViewController:self.viewController];
+    if (!statusBarManager.isStatusBarHidden) {
         [self hideStatusBar];
-        [self.statusBarBackgroundView removeFromSuperview];
         [self resizeWebView];
+        [self.statusBarBackgroundView removeFromSuperview];
         self.statusBarBackgroundView.hidden = YES;
+    }
+    if (!keepInsets) {
+        self.safeAreaCallbackId = nil;
     }
 }
 
 - (void)show:(CDVInvokedUrlCommand*)command {
     self.statusBarVisible = YES;
-    UIApplication* app = [UIApplication sharedApplication];
-    if (app.isStatusBarHidden) {
+    BOOL keepInsets = NO;
+    id arg = [command argumentAtIndex:0];
+    if ([arg isKindOfClass:[NSNumber class]]) keepInsets = [(NSNumber*)arg boolValue];
+    else if ([arg isKindOfClass:[NSString class]]) keepInsets = [(NSString*)arg boolValue];
+    self.keepInsets = keepInsets;
+    UIStatusBarManager *statusBarManager = [CDVStatusBar currentStatusBarManagerForViewController:self.viewController];
+    if (statusBarManager.isStatusBarHidden) {
         [self showStatusBar];
         [self resizeWebView];
 
@@ -367,6 +421,11 @@ static const void *kStatusBarStyle = &kStatusBarStyle;
             else [self.viewController.view addSubview:self.statusBarBackgroundView];
         }
         self.statusBarBackgroundView.hidden = NO;
+    }
+
+    if (!keepInsets) {
+        // optionally reset safe area callback / insets logic
+        self.safeAreaCallbackId = nil;
     }
 }
 
@@ -396,15 +455,7 @@ static const void *kStatusBarStyle = &kStatusBarStyle;
     [self.commandDelegate sendPluginResult:result callbackId:self.eventsCallbackId];
 }
 - (void)initializeStatusBarBackgroundView {
-    CGRect statusBarFrame = [UIApplication sharedApplication].statusBarFrame;
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wdeprecated-declarations"
-    if ([[UIApplication sharedApplication] statusBarOrientation] == UIInterfaceOrientationPortraitUpsideDown &&
-        statusBarFrame.size.height + statusBarFrame.origin.y == [self.viewController.view.window bounds].size.height) {
-        statusBarFrame.origin.y = 0;
-    }
-#pragma clang diagnostic pop
-
+    CGRect statusBarFrame = [CDVStatusBar statusBarFrameForViewController:self.viewController];
     if (!self.statusBarBackgroundView) {
         // Container view (base color)
         self.statusBarBackgroundView = [[UIView alloc] initWithFrame:statusBarFrame];
@@ -439,7 +490,7 @@ static const void *kStatusBarStyle = &kStatusBarStyle;
 }
 
 - (void)resizeStatusBarBackgroundView {
-    CGRect statusBarFrame = [UIApplication sharedApplication].statusBarFrame;
+    CGRect statusBarFrame = [CDVStatusBar statusBarFrameForViewController:self.viewController];
     CGRect sbBgFrame = self.statusBarBackgroundView.frame;
     sbBgFrame.size = statusBarFrame.size;
     sbBgFrame.origin = statusBarFrame.origin;
@@ -456,24 +507,21 @@ static const void *kStatusBarStyle = &kStatusBarStyle;
     self.viewController.view.frame = bounds;
     self.webView.frame = bounds;
 
-    CGFloat statusBarHeight = [UIApplication sharedApplication].statusBarFrame.size.height;
-
     CGRect frame = self.webView.frame;
-    if (!self.statusBarOverlaysWebView) {
-        // Push content below status bar
-        frame.origin.y = statusBarHeight;
-    } else {
-        // Overlaying: respect safe area
-        CGFloat safeAreaTop = 0;
-        if (@available(iOS 11.0, *)) {
-            safeAreaTop = self.webView.safeAreaInsets.top;
-        }
+    CGFloat safeAreaTop = 0;
+    CGRect statusBarFrame = [CDVStatusBar statusBarFrameForViewController:self.viewController];
+    CGFloat statusBarHeight = statusBarFrame.size.height;
 
-        // Ensure origin.y is never negative
-        frame.origin.y = MAX(0, statusBarHeight - safeAreaTop);
+    if (self.keepInsets || !self.statusBarOverlaysWebView) {
+        if (@available(iOS 11.0, *)) {
+            if (statusBarHeight > 0) {
+                self.storedSafeAreaTop = statusBarHeight;
+            }
+            safeAreaTop = self.keepInsets && statusBarHeight == 0 ? self.storedSafeAreaTop : statusBarHeight;
+        }
     }
 
-    // Adjust height to fill remaining space
+    frame.origin.y = safeAreaTop;
     frame.size.height = bounds.size.height - frame.origin.y;
     self.webView.frame = frame;
 }

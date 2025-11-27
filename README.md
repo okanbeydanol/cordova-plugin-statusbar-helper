@@ -39,15 +39,27 @@ StatusBar.styleDefault();
 // Set navigation bar buttons and status bar icons content color to white
 StatusBar.styleLightContent();
 
+// Hide / show (optional keepInsets boolean)
+var keepInsets = false;
+
 // Hide the status bar
-StatusBar.hide();
+StatusBar.hide(keepInsets);
 
 // Show the status bar
-StatusBar.show();
+StatusBar.show(keepInsets);
 
 // Check if status bar is ready and visible
 StatusBar.isReady(function(visible) {
     console.log('StatusBar is visible:', visible);
+});
+
+// Safe area insets (pixels)
+StatusBar.getSafeAreaInsets(function(insets) {
+  // insets: { top: number, left: number, bottom: number, right: number }
+});
+
+StatusBar.subscribeSafeAreaInsets(function(insets) {
+  // called on changes, same shape as above
 });
 ```
 
@@ -77,15 +89,27 @@ StatusBar.styleDefault();
 // Set navigation bar buttons and status bar icons content color to white
 StatusBar.styleLightContent();
 
+// Hide / show (optional keepInsets boolean)
+const keepInsets = false;
+
 // Hide the status bar
-StatusBar.hide();
+StatusBar.hide(keepInsets);
 
 // Show the status bar
-StatusBar.show();
+StatusBar.show(keepInsets);
 
 // Use TypeScript types for autocompletion
 StatusBar.isReady((visible: boolean) => {
     console.log('StatusBar is visible:', visible);
+});
+
+// Safe area insets (pixels)
+StatusBar.getSafeAreaInsets((insets) => {
+  console.log(insets.top, insets.bottom);
+});
+
+StatusBar.subscribeSafeAreaInsets((insets) => {
+  // handle live changes
 });
 ```
 
