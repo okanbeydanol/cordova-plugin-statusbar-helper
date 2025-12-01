@@ -56,7 +56,7 @@ public class StatusBar extends CordovaPlugin {
             final View decorView = window.getDecorView();
             // Use post to run code after the view is attached and measured.
             decorView.post(() -> {
-                if (edgeToEdge) {
+                if (isEdgeToEdge()) {
                     rootView.setBackgroundColor(Color.WHITE);
                 }
                 setSystemBarColors();
