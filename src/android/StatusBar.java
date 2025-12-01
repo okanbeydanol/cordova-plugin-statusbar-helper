@@ -44,13 +44,14 @@ public class StatusBar extends CordovaPlugin {
 
     @Override
     protected void pluginInitialize() {
+        rootView = this.webView.getView().getRootView();
         activity = cordova.getActivity();
         if (activity == null) return;
 
-        rootView = this.webView.getView().getRootView();
         window = activity.getWindow();
         runOnUiThread(() -> {
-            window.clearFlags(WindowManager.LayoutParams.FLAG_FORCE_NOT_FULLSCREEN | WindowManager.LayoutParams.FLAG_TRANSLUCENT_STATUS);
+            window.clearFlags(WindowManager.LayoutParams.FLAG_FORCE_NOT_FULLSCREEN
+                | WindowManager.LayoutParams.FLAG_TRANSLUCENT_STATUS);
             window.addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS);
 
             final View decorView = window.getDecorView();
@@ -223,14 +224,17 @@ public class StatusBar extends CordovaPlugin {
         int statusBarColor;
 
         if (enableFullScreen) {
+            // Fullscreen: status bar transparent, no WebView insets
             visibility = View.SYSTEM_UI_FLAG_LAYOUT_STABLE | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN;
             statusBarColor = Color.TRANSPARENT;
             updateWebViewInsets(false);
         } else if (isEdgeToEdge()) {
+            // Edge-to-edge app: status bar transparent but WebView has system bars insets
             visibility = View.SYSTEM_UI_FLAG_LAYOUT_STABLE | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN;
             statusBarColor = Color.TRANSPARENT;
             updateWebViewInsets(true);
         } else {
+            // Normal app: status bar visible with white background, WebView has no insets
             visibility = View.SYSTEM_UI_FLAG_LAYOUT_STABLE | View.SYSTEM_UI_FLAG_VISIBLE;
             statusBarColor = Color.WHITE;
             updateWebViewInsets(false);
@@ -268,7 +272,7 @@ public class StatusBar extends CordovaPlugin {
             window.getDecorView().setSystemUiVisibility(uiOptions);
         }
         window.addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN);
-        if(!keepInsets){
+        if (!keepInsets) {
             updateWebViewInsets(false);
         }
     }
