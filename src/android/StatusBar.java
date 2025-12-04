@@ -284,6 +284,10 @@ public class StatusBar extends CordovaPlugin {
         if (enableInsets) {
             applyInsets(rootView);
             ViewCompat.setOnApplyWindowInsetsListener(rootView, (v, insets) -> {
+                if(fullScreenAppEnabled || isEdgeToEdge()){
+                    window.setNavigationBarColor(Color.TRANSPARENT);
+                    window.setStatusBarColor(Color.TRANSPARENT);
+                }
                 applyInsets(v);
                 return insets;
             });
