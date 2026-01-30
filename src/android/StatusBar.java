@@ -41,28 +41,27 @@ public class StatusBar extends CordovaPlugin {
     private Window window;
     private View rootView;
     private boolean fullScreenAppEnabled = false;
+    // Add a field:
+    private View DecoreView;
+    private View WebView;
 
     @Override
     protected void pluginInitialize() {
-        rootView = this.webView.getView().getRootView();
+
         activity = cordova.getActivity();
         if (activity == null) return;
 
         window = activity.getWindow();
+        DecoreView = window.getDecorView();
+        WebView = this.webView.getView();
+        rootView = DecoreView.getRootView();
         runOnUiThread(() -> {
             window.clearFlags(WindowManager.LayoutParams.FLAG_FORCE_NOT_FULLSCREEN
                 | WindowManager.LayoutParams.FLAG_TRANSLUCENT_STATUS);
             window.addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS);
-
-            final View decorView = window.getDecorView();
-            // Use post to run code after the view is attached and measured.
-            decorView.post(() -> {
-                if (isEdgeToEdge()) {
-                    rootView.setBackgroundColor(Color.WHITE);
-                }
-                setSystemBarColors();
-                overlaysWebView(false);
-            });
+            WindowCompat.setDecorFitsSystemWindows(window, false);
+            setSystemBarColors();
+            overlaysWebView(false);
         });
     }
 
@@ -166,10 +165,8 @@ public class StatusBar extends CordovaPlugin {
         Integer color = parseColorSafe(hex);
         if (color == null) return;
 
-        window.setStatusBarColor(fullScreenAppEnabled || isEdgeToEdge() ? Color.TRANSPARENT : color);
-        if (isEdgeToEdge()) {
-            rootView.setBackgroundColor(fullScreenAppEnabled ? Color.TRANSPARENT : color);
-        }
+        window.setStatusBarColor(fullScreenAppEnabled  ? Color.TRANSPARENT : color);
+        rootView.setBackgroundColor(fullScreenAppEnabled ? Color.TRANSPARENT : color);
 
         setBarStyle(isLightTextNeeded(color) ? STYLE_LIGHT_CONTENT : STYLE_DEFAULT, true);
     }
@@ -178,7 +175,7 @@ public class StatusBar extends CordovaPlugin {
         Integer color = parseColorSafe(hex);
         if (color == null) return;
 
-        window.setNavigationBarColor(fullScreenAppEnabled || isEdgeToEdge() ? Color.TRANSPARENT : color);
+        window.setNavigationBarColor(fullScreenAppEnabled ? Color.TRANSPARENT : color);
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             window.setNavigationBarDividerColor(Color.TRANSPARENT);
@@ -219,30 +216,17 @@ public class StatusBar extends CordovaPlugin {
     private void overlaysWebView(boolean enableFullScreen) {
         fullScreenAppEnabled = enableFullScreen;
 
-        final View decorView = window.getDecorView();
-        int visibility;
-        int statusBarColor;
+        WindowCompat.setDecorFitsSystemWindows(window, false);
 
-        if (enableFullScreen) {
-            // Fullscreen: status bar transparent, no WebView insets
-            visibility = View.SYSTEM_UI_FLAG_LAYOUT_STABLE | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN;
-            statusBarColor = Color.TRANSPARENT;
-            updateWebViewInsets(false);
-        } else if (isEdgeToEdge()) {
-            // Edge-to-edge app: status bar transparent but WebView has system bars insets
-            visibility = View.SYSTEM_UI_FLAG_LAYOUT_STABLE | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN;
-            statusBarColor = Color.TRANSPARENT;
-            updateWebViewInsets(true);
-        } else {
-            // Normal app: status bar visible with white background, WebView has no insets
-            visibility = View.SYSTEM_UI_FLAG_LAYOUT_STABLE | View.SYSTEM_UI_FLAG_VISIBLE;
-            statusBarColor = Color.WHITE;
-            updateWebViewInsets(false);
-        }
+        window.setStatusBarColor(Color.TRANSPARENT);
+        window.setNavigationBarColor(Color.TRANSPARENT);
 
-        decorView.setSystemUiVisibility(visibility);
-        window.setStatusBarColor(statusBarColor);
-        window.setNavigationBarColor(statusBarColor);
+        int flags = View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+            | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+            | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION;
+        window.getDecorView().setSystemUiVisibility(flags);
+
+        updateWebViewInsets(fullScreenAppEnabled);
     }
 
     private void showSystemBars(boolean keepInsets) {
@@ -257,7 +241,7 @@ public class StatusBar extends CordovaPlugin {
         }
         window.clearFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN);
         if (!keepInsets) {
-            updateWebViewInsets(isEdgeToEdge() && !fullScreenAppEnabled);
+            updateWebViewInsets(!fullScreenAppEnabled);
         }
     }
 
@@ -280,47 +264,46 @@ public class StatusBar extends CordovaPlugin {
     // ====================
     // Safe Area Insets
     // ====================
-    private void updateWebViewInsets(boolean enableInsets) {
-        if (enableInsets) {
-            applyInsets(rootView);
-            ViewCompat.setOnApplyWindowInsetsListener(rootView, (v, insets) -> {
-                if(fullScreenAppEnabled || isEdgeToEdge()){
-                    window.setNavigationBarColor(Color.TRANSPARENT);
-                    window.setStatusBarColor(Color.TRANSPARENT);
-                }
-                applyInsets(v);
-                return insets;
-            });
-        } else {
-            rootView.setPadding(0, 0, 0, 0);
-            ViewCompat.setOnApplyWindowInsetsListener(rootView, null);
-        }
-    }
+    private void updateWebViewInsets(boolean fullscreenMode) {
+        if (DecoreView == null || WebView == null) return;
 
-    private void applyInsets(View v) {
-        WindowInsetsCompat insets = ViewCompat.getRootWindowInsets(v);
-        if (insets == null) return;
+        // Always clear both listeners (prevents stale callbacks)
+        ViewCompat.setOnApplyWindowInsetsListener(DecoreView, null);
+        ViewCompat.setOnApplyWindowInsetsListener(WebView, null);
 
-        Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars() | WindowInsetsCompat.Type.displayCutout());
-        Insets imeInsets = insets.getInsets(WindowInsetsCompat.Type.ime());
-        boolean keyboardVisible = insets.isVisible(WindowInsetsCompat.Type.ime());
+        // Reset both paddings
+        DecoreView.setPadding(0, 0, 0, 0);
+        WebView.setPadding(0, 0, 0, 0);
 
-        int top = systemBars.top;
-        int bottom = keyboardVisible ? Math.max(systemBars.bottom, imeInsets.bottom) : systemBars.bottom;
-        int left = systemBars.left;
-        int right = systemBars.right;
+        final View target = fullscreenMode ? WebView : DecoreView;
 
-        v.setPadding(left, top, right, bottom);
+        ViewCompat.setOnApplyWindowInsetsListener(target, (v, insets) -> {
+            Insets systemBars = insets.getInsets(
+                WindowInsetsCompat.Type.systemBars() | WindowInsetsCompat.Type.displayCutout()
+            );
+            Insets imeInsets = insets.getInsets(WindowInsetsCompat.Type.ime());
+            boolean imeVisible = insets.isVisible(WindowInsetsCompat.Type.ime());
+
+            int bottom = imeVisible ? Math.max(systemBars.bottom, imeInsets.bottom) : systemBars.bottom;
+            v.setPadding(systemBars.left, systemBars.top, systemBars.right, bottom);
+
+            return WindowInsetsCompat.CONSUMED;
+        });
+
+        // Request insets on the target, and again after layout (Cordova race fix)
+        ViewCompat.requestApplyInsets(target);
+        target.post(() -> ViewCompat.requestApplyInsets(target));
     }
 
     private void getSafeAreaInsets(CallbackContext callbackContext) {
         try {
             Context ctx = activity;
             JSONObject obj = new JSONObject();
-            obj.put("top", toDIPFromPixel(ctx, rootView.getPaddingTop()));
-            obj.put("left", toDIPFromPixel(ctx, rootView.getPaddingLeft()));
-            obj.put("bottom", toDIPFromPixel(ctx, rootView.getPaddingBottom()));
-            obj.put("right", toDIPFromPixel(ctx, rootView.getPaddingRight()));
+            View padded = fullScreenAppEnabled ? WebView : DecoreView;
+            obj.put("top", toDIPFromPixel(ctx, padded.getPaddingTop()));
+            obj.put("left", toDIPFromPixel(ctx, padded.getPaddingLeft()));
+            obj.put("bottom", toDIPFromPixel(ctx, padded.getPaddingBottom()));
+            obj.put("right", toDIPFromPixel(ctx, padded.getPaddingRight()));
 
             callbackContext.sendPluginResult(new PluginResult(PluginResult.Status.OK, obj));
         } catch (Exception e) {
@@ -345,10 +328,6 @@ public class StatusBar extends CordovaPlugin {
 
     private void runOnUiThread(Runnable r) {
         if (activity != null) activity.runOnUiThread(r);
-    }
-
-    private boolean isEdgeToEdge() {
-        return Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q; // Android 10+
     }
 
     public static float toDIPFromPixel(Context context, float px) {
